@@ -41,7 +41,6 @@ func (s *Stack) Pop() (interface{}, error) {
 	return item, nil
 }
 
-// Peek возвращает верхний элемент стека без его удаления
 func (s *Stack) Top() (interface{}, error) {
 	s.mt.Lock()
 	defer s.mt.Unlock()
@@ -70,8 +69,59 @@ func precedence(op string) int {
 	}
 }
 
+// Проверка на корректность выражения
+func validateExpression(expression string) error {
+	tokens := strings.Fields(expression)
+	if len(tokens) == 0 {
+		return errors.New("пустое выражение")
+	}
+
+	operatorCount := 0
+	numberCount := 0
+	parens := 0
+
+	for i, token := range tokens {
+		if _, err := strconv.Atoi(token); err == nil {
+			numberCount++
+		} else if token == "(" {
+			parens++
+		} else if token == ")" {
+			parens--
+			if parens < 0 {
+				return errors.New("несоответствие скобок: больше закрывающих, чем открывающих")
+			}
+		} else if isOperator(token) {
+			operatorCount++
+			if i == 0 || i == len(tokens)-1 || isOperator(tokens[i-1]) {
+				return errors.New("недопустимый оператор перед или после: " + token)
+			}
+		} else {
+			return errors.New("недопустимый токен: " + token)
+		}
+	}
+	if parens != 0 {
+		return errors.New("несоответствие скобок: количество открывающих и закрывающих скобок не совпадает")
+	}
+	if operatorCount+1 != numberCount {
+		return errors.New("ошибка в количестве операторов и чисел")
+	}
+	return nil
+}
+
+func isOperator(token string) bool {
+	switch token {
+	case "+", "-", "*", "/", "^":
+		return true
+	}
+	return false
+}
+
 // Функция для перевода в постфиксную запись
 func infixToPostfix(expression string) (string, error) {
+	if err := validateExpression(expression); err != nil {
+		return "", err
+	}
+
 	var output []string
 	stack := NewStack()
 
@@ -120,10 +170,10 @@ func infixToPostfix(expression string) (string, error) {
 }
 
 func main() {
-	expression := "( 2 - 8 ) * 5" // Пример входного выражения (в качестве разделителей пробелы)
+	expression := "( 1 + 2" // Пример входного выражения (в качестве разделителей пробелы)
 	postfix, err := infixToPostfix(expression)
 	if err != nil {
-		fmt.Printf("%v", err)
+		fmt.Printf("%v\n", err)
 	} else {
 		fmt.Println("Польская инверсная запись:", postfix)
 	}
